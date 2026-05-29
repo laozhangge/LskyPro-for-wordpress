@@ -221,7 +221,7 @@ function lskyupload_options_page() {
                 <div class="lskypro-settings-section">
                     <h2>关于</h2>
                     <p>兰空图床上传 v<?php echo LSKYPRO_VERSION; ?></p>
-                    <p>原作者：<a href="https://github.com/isYangs" target="_blank">isYangs</a> | 二次开发：<a href="https://github.com/isYangs" target="_blank">小旭</a> | 优化：<a href="https://laozhang.org" target="_blank">老张播客</a></p>
+                    <p>作者：<a href="https://laozhang.org" target="_blank">老张博客</a></p>
                     <p>插件主页：<a href="https://github.com/laozhangge/LskyPro-for-wordpress" target="_blank">GitHub</a></p>
                     <p>兰空图床官网：<a href="https://www.lsky.pro/" target="_blank">https://www.lsky.pro/</a></p>
                 </div>

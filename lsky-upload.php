@@ -2,9 +2,9 @@
 /*
 Plugin Name: 兰空图床上传
 Plugin URI: https://github.com/laozhangge/LskyPro-for-wordpress
-Description: 该插件原作者isYangs，经小旭二次开发后，再经老张进行优化。支持粘贴上传和存储策略/相册选择。安装完成后先在插件设置中填写对应参数后再使用，若在使用过程中出现问题或者Bug请截图保存反馈至作者邮箱
+Description: 通过WordPress兰空图床插件复刻而来，支持粘贴上传和存储策略/相册选择。安装完成后先在插件设置中填写对应参数后再使用，若在使用过程中出现问题或者Bug请截图保存反馈至作者邮箱
 Version: 1.3.6
-Author: isYangs, 小旭, 老张播客
+Author: 老张博客
 Author URI: https://laozhang.org
 License: GPL v2 or later
 Text Domain: lskypro-upload
@@ -12,7 +12,6 @@ Text Domain: lskypro-upload
 
 //-------------  还请各位大佬手下留情，不要改作者署名和作者链接，蟹蟹啦~~~ --------------
 
-// 防止直接访问
 if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
@@ -73,7 +72,7 @@ function lskypro_add_action_links($actions) {
     $actions = array_merge(
         array('settings' => $settings_link),
         array(
-            'blog' => '<a href="https://laozhang.org" target="_blank">老张播客</a>',
+            'blog' => '<a href="https://laozhang.org" target="_blank">老张博客</a>',
             'lsky' => '<a href="https://www.lsky.pro/" target="_blank">兰空官网</a>'
         ),
         $actions
