@@ -266,10 +266,10 @@ function lskypro_test_connection() {
             return;
         }
         
-        // 获取配置
-        $domain = get_option('domain');
-        $tokens = get_option('tokens');
-        $api_version = get_option('lskypro_api_version', 'v1');
+        // 优先从POST获取配置，其次从数据库获取
+        $domain = isset($_POST['domain']) ? sanitize_url($_POST['domain']) : get_option('domain');
+        $tokens = isset($_POST['tokens']) ? sanitize_text_field($_POST['tokens']) : get_option('tokens');
+        $api_version = isset($_POST['api_version']) ? sanitize_text_field($_POST['api_version']) : get_option('lskypro_api_version', 'v1');
         
         if (empty($domain) || empty($tokens)) {
             wp_send_json_error(array(
@@ -280,11 +280,10 @@ function lskypro_test_connection() {
         }
         
         // 测试连接
-        // 测试连接
-$url = ($api_version === 'v2') ? 
-$domain . '/api/v2/user/profile' : 
-$domain . '/api/' . $api_version . '/profile';
-$response = wp_remote_get($url, array(
+        $url = ($api_version === 'v2') ? 
+            $domain . '/api/v2/user/profile' : 
+            $domain . '/api/' . $api_version . '/profile';
+        $response = wp_remote_get($url, array(
             'headers' => array(
                 'Authorization' => 'Bearer ' . $tokens,
                 'Accept' => 'application/json'
@@ -334,6 +333,184 @@ $response = wp_remote_get($url, array(
         // 记录错误
         if (function_exists('lskypro_log_error')) {
             lskypro_log_error('测试连接时出错: ' . $e->getMessage());
+        }
+        
+        wp_send_json_error(array(
+            'message' => '处理请求时出错: ' . $e->getMessage(),
+            'code' => 'server_error'
+        ));
+    }
+    
+    wp_die();
+}
+
+/**
+ * 获取存储策略列表
+ */
+add_action('wp_ajax_lskypro_get_strategies', 'lskypro_get_strategies');
+function lskypro_get_strategies() {
+    try {
+        // 检查安全性
+        check_ajax_referer('lskypro-upload-nonce', 'nonce');
+        
+        // 检查用户权限
+        if (!lskypro_user_can_upload()) {
+            wp_send_json_error(array(
+                'message' => '没有权限',
+                'code' => 'permission_denied'
+            ));
+            return;
+        }
+        
+        // 优先从POST获取配置，其次从数据库获取
+        $domain = isset($_POST['domain']) ? sanitize_url($_POST['domain']) : get_option('domain');
+        $tokens = isset($_POST['tokens']) ? sanitize_text_field($_POST['tokens']) : get_option('tokens');
+        // 策略列表API始终使用V1版本
+        $api_version = 'v1';
+        
+        if (empty($domain) || empty($tokens)) {
+            wp_send_json_error(array(
+                'message' => '请先配置API网址和Tokens',
+                'code' => 'missing_config'
+            ));
+            return;
+        }
+        
+        // 获取策略列表
+        $url = $domain . '/api/' . $api_version . '/strategies';
+        $response = wp_remote_get($url, array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $tokens,
+                'Accept' => 'application/json'
+            ),
+            'timeout' => 15
+        ));
+        
+        if (is_wp_error($response)) {
+            wp_send_json_error(array(
+                'message' => '获取策略列表失败: ' . $response->get_error_message(),
+                'code' => 'connection_error'
+            ));
+            return;
+        }
+        
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        
+        // 处理响应
+        if (isset($data['status']) && $data['status']) {
+            $strategies = array();
+            // 策略列表在 data.strategies 中
+            $strategyList = isset($data['data']['strategies']) ? $data['data']['strategies'] : array();
+            if (is_array($strategyList)) {
+                foreach ($strategyList as $item) {
+                    $strategies[] = array(
+                        'id' => $item['id'],
+                        'name' => $item['name']
+                    );
+                }
+            }
+            wp_send_json_success(array(
+                'strategies' => $strategies
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => isset($data['message']) ? $data['message'] : '获取策略列表失败',
+                'code' => 'api_error'
+            ));
+        }
+    } catch (Exception $e) {
+        if (function_exists('lskypro_log_error')) {
+            lskypro_log_error('获取策略列表时出错: ' . $e->getMessage());
+        }
+        
+        wp_send_json_error(array(
+            'message' => '处理请求时出错: ' . $e->getMessage(),
+            'code' => 'server_error'
+        ));
+    }
+    
+    wp_die();
+}
+
+/**
+ * 获取相册列表
+ */
+add_action('wp_ajax_lskypro_get_albums', 'lskypro_get_albums');
+function lskypro_get_albums() {
+    try {
+        // 检查安全性
+        check_ajax_referer('lskypro-upload-nonce', 'nonce');
+        
+        // 检查用户权限
+        if (!lskypro_user_can_upload()) {
+            wp_send_json_error(array(
+                'message' => '没有权限',
+                'code' => 'permission_denied'
+            ));
+            return;
+        }
+        
+        // 优先从POST获取配置，其次从数据库获取
+        $domain = isset($_POST['domain']) ? sanitize_url($_POST['domain']) : get_option('domain');
+        $tokens = isset($_POST['tokens']) ? sanitize_text_field($_POST['tokens']) : get_option('tokens');
+        // 相册列表API始终使用V1版本
+        $api_version = 'v1';
+        
+        if (empty($domain) || empty($tokens)) {
+            wp_send_json_error(array(
+                'message' => '请先配置API网址和Tokens',
+                'code' => 'missing_config'
+            ));
+            return;
+        }
+        
+        // 获取相册列表
+        $url = $domain . '/api/' . $api_version . '/albums';
+        $response = wp_remote_get($url, array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $tokens,
+                'Accept' => 'application/json'
+            ),
+            'timeout' => 15
+        ));
+        
+        if (is_wp_error($response)) {
+            wp_send_json_error(array(
+                'message' => '获取相册列表失败: ' . $response->get_error_message(),
+                'code' => 'connection_error'
+            ));
+            return;
+        }
+        
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        
+        // 处理响应
+        if (isset($data['status']) && $data['status']) {
+            $albums = array();
+            // 相册列表在 data.data 中（分页格式）
+            $albumList = isset($data['data']['data']) ? $data['data']['data'] : array();
+            if (is_array($albumList)) {
+                foreach ($albumList as $item) {
+                    $albums[] = array(
+                        'id' => $item['id'],
+                        'name' => $item['name']
+                    );
+                }
+            }
+            wp_send_json_success(array(
+                'albums' => $albums
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => isset($data['message']) ? $data['message'] : '获取相册列表失败',
+                'code' => 'api_error'
+            ));
+        }
+    } catch (Exception $e) {
+        if (function_exists('lskypro_log_error')) {
+            lskypro_log_error('获取相册列表时出错: ' . $e->getMessage());
         }
         
         wp_send_json_error(array(

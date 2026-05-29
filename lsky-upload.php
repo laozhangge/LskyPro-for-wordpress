@@ -1,11 +1,11 @@
 <?php
 /*
 Plugin Name: 兰空图床上传
-Plugin URI: https://github.com/isYangs/LskyPro-for-WordPress
-Description: 可以直接在编辑时点击上传按钮上传图片至兰空图床(LskyPro)，安装完成后先在插件设置中填写对应参数后再使用，若在使用过程中出现问题或者Bug请截图保存反馈至作者邮箱
-Version: 1.1.0
-Author: isYangs 
-Author URI: https://wpa.qq.com/wpa_jump_page?v=3&uin=750837279&site=qq&menu=yes
+Plugin URI: https://github.com/laozhangge/LskyPro-for-wordpress
+Description: 该插件原作者isYangs，经小旭二次开发后，再经老张进行优化。支持粘贴上传和存储策略/相册选择。安装完成后先在插件设置中填写对应参数后再使用，若在使用过程中出现问题或者Bug请截图保存反馈至作者邮箱
+Version: 1.3.6
+Author: isYangs, 小旭, 老张播客
+Author URI: https://laozhang.org
 License: GPL v2 or later
 Text Domain: lskypro-upload
 */
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // 定义插件常量
-define('LSKYPRO_VERSION', '1.1.0');
+define('LSKYPRO_VERSION', '1.3.6');
 define('LSKYPRO_FILE', __FILE__);
 define('LSKYPRO_PATH', plugin_dir_path(__FILE__));
 define('LSKYPRO_URL', plugins_url('', __FILE__));
@@ -41,6 +41,8 @@ function lskypro_activate() {
     add_option('lskypro_api_version', LSKYPRO_API_V1); // 默认使用V1版本API
     add_option('lskypro_max_size', 10); // 默认最大上传大小为10MB
     add_option('lskypro_allowed_types', array('jpg', 'jpeg', 'png', 'gif')); // 默认允许的文件类型
+    add_option('lskypro_storage_id', ''); // 存储策略ID
+    add_option('lskypro_album_id', ''); // 相册ID
 }
 
 /**
@@ -56,6 +58,8 @@ function lskypro_uninstall() {
     delete_option('lskypro_max_size');
     delete_option('lskypro_allowed_types');
     delete_option('lskypro_api_version');
+    delete_option('lskypro_storage_id');
+    delete_option('lskypro_album_id');
 }
 
 /**
@@ -69,7 +73,7 @@ function lskypro_add_action_links($actions) {
     $actions = array_merge(
         array('settings' => $settings_link),
         array(
-            'contact' => '<a href="http://mail.qq.com/cgi-bin/qm_share?t=qm_mailme&email=isYangs@foxmail.com" target="_blank">反馈</a>',
+            'blog' => '<a href="https://laozhang.org" target="_blank">老张播客</a>',
             'lsky' => '<a href="https://www.lsky.pro/" target="_blank">兰空官网</a>'
         ),
         $actions
@@ -121,22 +125,27 @@ function lskypro_enqueue_scripts($hook) {
     // 注册并加载脚本
     wp_register_script('axios', LSKYPRO_URL . '/assets/axios.min.js', array(), '0.27.2', true);
     wp_register_script('lskypro-upload-js', LSKYPRO_URL . '/assets/lskypro-upload.js', array('axios'), LSKYPRO_VERSION, true);
+    wp_register_script('lskypro-paste-upload-js', LSKYPRO_URL . '/assets/lskypro-paste-upload.js', array(), LSKYPRO_VERSION, true);
     
     wp_enqueue_script('axios');
     wp_enqueue_script('lskypro-upload-js');
+    wp_enqueue_script('lskypro-paste-upload-js');
     
     // 传递PHP变量到JavaScript
-    wp_localize_script('lskypro-upload-js', 'lskyproData', array(
+    $lskypro_localize_data = array(
         'domain' => get_option('domain', ''),
         'tokens' => get_option('tokens', ''),
         'permission' => get_option('permission', '1'),
         'api_version' => get_option('lskypro_api_version', LSKYPRO_API_V1),
-        'storage_id' => get_option('lskypro_storage_id', '1'), // 添加存储ID参数
+        'storage_id' => get_option('lskypro_storage_id', ''),
+        'album_id' => get_option('lskypro_album_id', ''),
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('lskypro-upload-nonce'),
         'max_size' => get_option('lskypro_max_size', 10),
         'allowed_types' => lskypro_get_allowed_types()
-    ));
+    );
+    wp_localize_script('lskypro-upload-js', 'lskyproData', $lskypro_localize_data);
+    wp_localize_script('lskypro-paste-upload-js', 'lskyproData', $lskypro_localize_data);
 }
 
 /**

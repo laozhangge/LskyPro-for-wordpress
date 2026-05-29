@@ -34,6 +34,7 @@ function lskyupload_menu_page() {
     register_setting('lskypro_settings_group', 'lskypro_allowed_types', 'lskypro_sanitize_types');
     register_setting('lskypro_settings_group', 'lskypro_api_version', 'sanitize_text_field');
     register_setting('lskypro_settings_group', 'lskypro_storage_id', 'absint');
+    register_setting('lskypro_settings_group', 'lskypro_album_id', 'absint');
 }
 
 /**
@@ -132,10 +133,25 @@ function lskyupload_options_page() {
                             </td>
                         </tr>
                         <tr valign="top">
-                            <th scope="row">存储ID (V2版本必填)</th>
+                            <th scope="row">存储策略 (V2版本必填)</th>
                             <td>
-                                <input type="number" class="small-text" name="lskypro_storage_id" min="1" value="<?php echo intval(get_option('lskypro_storage_id', '1')); ?>" />
-                                <p class="description">兰空图床V2版本的存储策略ID，通常默认为1</p>
+                                <select name="lskypro_storage_id" id="lskypro-storage-id">
+                                    <option value="">请先测试连接</option>
+                                </select>
+                                <button type="button" id="lskypro-load-strategies" class="button" style="margin-left:10px;" disabled>刷新列表</button>
+                                <span id="lskypro-strategies-loading" style="display:none;margin-left:10px;">加载中...</span>
+                                <p class="description">兰空图床的存储策略，测试连接后自动加载</p>
+                            </td>
+                        </tr>
+                        <tr valign="top">
+                            <th scope="row">上传相册</th>
+                            <td>
+                                <select name="lskypro_album_id" id="lskypro-album-id">
+                                    <option value="">不指定相册</option>
+                                </select>
+                                <button type="button" id="lskypro-load-albums" class="button" style="margin-left:10px;" disabled>刷新列表</button>
+                                <span id="lskypro-albums-loading" style="display:none;margin-left:10px;">加载中...</span>
+                                <p class="description">选择上传到指定相册，测试连接后自动加载</p>
                             </td>
                         </tr>
                         <tr valign="top">
@@ -205,9 +221,9 @@ function lskyupload_options_page() {
                 <div class="lskypro-settings-section">
                     <h2>关于</h2>
                     <p>兰空图床上传 v<?php echo LSKYPRO_VERSION; ?></p>
-                    <p>作者：<a href="https://wpa.qq.com/wpa_jump_page?v=3&uin=750837279&site=qq&menu=yes" target="_blank">isYangs</a></p>
+                    <p>原作者：<a href="https://github.com/isYangs" target="_blank">isYangs</a> | 二次开发：<a href="https://github.com/isYangs" target="_blank">小旭</a> | 优化：<a href="https://laozhang.org" target="_blank">老张播客</a></p>
+                    <p>插件主页：<a href="https://github.com/laozhangge/LskyPro-for-wordpress" target="_blank">GitHub</a></p>
                     <p>兰空图床官网：<a href="https://www.lsky.pro/" target="_blank">https://www.lsky.pro/</a></p>
-                    <p>如果在使用过程中遇到问题或有建议，请<a href="http://mail.qq.com/cgi-bin/qm_share?t=qm_mailme&email=isYangs@foxmail.com" target="_blank">联系作者</a></p>
                 </div>
                 
                 <p class="submit">
@@ -237,18 +253,121 @@ function lskyupload_options_page() {
         
         <script>
             jQuery(document).ready(function($) {
+                var ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+                var nonce = '<?php echo wp_create_nonce('lskypro-upload-nonce'); ?>';
+                var currentStorageId = '<?php echo esc_attr(get_option('lskypro_storage_id', '')); ?>';
+                var currentAlbumId = '<?php echo esc_attr(get_option('lskypro_album_id', '')); ?>';
+                
                 // 表单提交处理
                 $('form').on('submit', function() {
                     $('#submit').prop('disabled', true);
                     $('#lskypro-saving').show();
                 });
                 
+                // 加载存储策略列表
+                function loadStrategies() {
+                    var domain = $('#lskypro-domain').val();
+                    var tokens = $('#lskypro-tokens').val();
+                    var apiVersion = $('#lskypro-api-version').val();
+                    
+                    if (!domain || !tokens) {
+                        return;
+                    }
+                    
+                    $('#lskypro-strategies-loading').show();
+                    $('#lskypro-load-strategies').prop('disabled', true);
+                    
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'lskypro_get_strategies',
+                            nonce: nonce,
+                            domain: domain,
+                            tokens: tokens,
+                            api_version: apiVersion
+                        },
+                        success: function(response) {
+                            var select = $('#lskypro-storage-id');
+                            select.empty().append('<option value="">请选择存储策略</option>');
+                            
+                            if (response.success && response.data.strategies) {
+                                $.each(response.data.strategies, function(i, item) {
+                                    var selected = (item.id == currentStorageId) ? 'selected' : '';
+                                    select.append('<option value="' + item.id + '" ' + selected + '>' + item.name + '</option>');
+                                });
+                                $('#lskypro-load-strategies').prop('disabled', false);
+                            } else {
+                                select.append('<option value="">加载失败</option>');
+                            }
+                        },
+                        error: function() {
+                            var select = $('#lskypro-storage-id');
+                            select.empty().append('<option value="">加载失败</option>');
+                        },
+                        complete: function() {
+                            $('#lskypro-strategies-loading').hide();
+                        }
+                    });
+                }
+                
+                // 加载相册列表
+                function loadAlbums() {
+                    var domain = $('#lskypro-domain').val();
+                    var tokens = $('#lskypro-tokens').val();
+                    var apiVersion = $('#lskypro-api-version').val();
+                    
+                    if (!domain || !tokens) {
+                        return;
+                    }
+                    
+                    $('#lskypro-albums-loading').show();
+                    $('#lskypro-load-albums').prop('disabled', true);
+                    
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'lskypro_get_albums',
+                            nonce: nonce,
+                            domain: domain,
+                            tokens: tokens,
+                            api_version: apiVersion
+                        },
+                        success: function(response) {
+                            var select = $('#lskypro-album-id');
+                            select.empty().append('<option value="">不指定相册</option>');
+                            
+                            if (response.success && response.data.albums) {
+                                $.each(response.data.albums, function(i, item) {
+                                    var selected = (item.id == currentAlbumId) ? 'selected' : '';
+                                    select.append('<option value="' + item.id + '" ' + selected + '>' + item.name + '</option>');
+                                });
+                                $('#lskypro-load-albums').prop('disabled', false);
+                            } else {
+                                select.append('<option value="">加载失败</option>');
+                            }
+                        },
+                        error: function() {
+                            var select = $('#lskypro-album-id');
+                            select.empty().append('<option value="">加载失败</option>');
+                        },
+                        complete: function() {
+                            $('#lskypro-albums-loading').hide();
+                        }
+                    });
+                }
+                
+                // 刷新按钮点击事件
+                $('#lskypro-load-strategies').on('click', loadStrategies);
+                $('#lskypro-load-albums').on('click', loadAlbums);
+                
                 // 测试连接
                 $('#lskypro-test-connection').on('click', function() {
-                    const domain = $('#lskypro-domain').val();
-                    const tokens = $('#lskypro-tokens').val();
-                    const apiVersion = $('#lskypro-api-version').val();
-                    const resultBox = $('#lskypro-connection-result');
+                    var domain = $('#lskypro-domain').val();
+                    var tokens = $('#lskypro-tokens').val();
+                    var apiVersion = $('#lskypro-api-version').val();
+                    var resultBox = $('#lskypro-connection-result');
                     
                     // 验证输入
                     if (!domain || !tokens) {
@@ -269,7 +388,7 @@ function lskyupload_options_page() {
                         type: 'POST',
                         data: {
                             action: 'lskypro_test_connection',
-                            nonce: '<?php echo wp_create_nonce('lskypro-upload-nonce'); ?>',
+                            nonce: nonce,
                             domain: domain,
                             tokens: tokens,
                             api_version: apiVersion
@@ -280,6 +399,10 @@ function lskyupload_options_page() {
                                     .html('<p><strong>成功：</strong>' + response.data.message + 
                                     (response.data.user ? '，欢迎 ' + response.data.user : '') + '</p>')
                                     .show();
+                                
+                                // 连接成功后自动加载策略和相册列表
+                                loadStrategies();
+                                loadAlbums();
                             } else {
                                 resultBox.removeClass('notice-success').addClass('notice-error')
                                     .html('<p><strong>错误：</strong>' + (response.data ? response.data.message : '连接失败') + '</p>')
@@ -300,7 +423,7 @@ function lskyupload_options_page() {
                 
                 // 确保至少选择一个图片类型
                 $('form').on('submit', function(e) {
-                    const checkedTypes = $('input[name="lskypro_allowed_types[]"]:checked').length;
+                    var checkedTypes = $('input[name="lskypro_allowed_types[]"]:checked').length;
                     if (checkedTypes === 0) {
                         e.preventDefault();
                         alert('请至少选择一种允许上传的图片类型');
@@ -310,13 +433,21 @@ function lskyupload_options_page() {
                 
                 // 确保至少选择一个角色
                 $('form').on('submit', function(e) {
-                    const checkedRoles = $('input[name="lskypro_roles[]"]:checked').length;
+                    var checkedRoles = $('input[name="lskypro_roles[]"]:checked').length;
                     if (checkedRoles === 0) {
                         e.preventDefault();
                         alert('请至少选择一个允许使用的用户角色');
                         return false;
                     }
                 });
+                
+                // 页面加载时，如果domain和tokens已有值，自动加载策略和相册列表
+                var domain = $('#lskypro-domain').val();
+                var tokens = $('#lskypro-tokens').val();
+                if (domain && tokens) {
+                    loadStrategies();
+                    loadAlbums();
+                }
             });
         </script>
     </div>
