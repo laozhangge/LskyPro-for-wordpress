@@ -3,7 +3,7 @@
 Plugin Name: 兰空图床上传
 Plugin URI: https://github.com/laozhangge/LskyPro-for-wordpress
 Description: 通过WordPress兰空图床插件复刻而来，支持粘贴上传和存储策略/相册选择。安装完成后先在插件设置中填写对应参数后再使用，若在使用过程中出现问题或者Bug请截图保存反馈至作者邮箱
-Version: 1.3.6
+Version: 1.3.7
 Author: 老张博客
 Author URI: https://laozhang.org
 License: GPL v2 or later
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // 定义插件常量
-define('LSKYPRO_VERSION', '1.3.6');
+define('LSKYPRO_VERSION', '1.3.7');
 define('LSKYPRO_FILE', __FILE__);
 define('LSKYPRO_PATH', plugin_dir_path(__FILE__));
 define('LSKYPRO_URL', plugins_url('', __FILE__));
@@ -49,10 +49,11 @@ function lskypro_activate() {
  */
 register_uninstall_hook(LSKYPRO_FILE, 'lskypro_uninstall');
 function lskypro_uninstall() {
-    // 删除插件相关选项
+    // 删除所有插件相关选项（统一使用lskypro_前缀）
     delete_option('domain');
     delete_option('tokens');
     delete_option('permission');
+    delete_option('lskypro_permission');
     delete_option('lskypro_roles');
     delete_option('lskypro_max_size');
     delete_option('lskypro_allowed_types');

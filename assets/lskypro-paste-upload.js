@@ -98,7 +98,8 @@
      * 插入图片到编辑器
      */
     function insertImageToEditor(url) {
-        var imgHtml = '<img src="' + url + '" alt="" />';
+        var safeUrl = encodeURI(url);
+        var imgHtml = '<img src="' + safeUrl + '" alt="" />';
         
         // 尝试TinyMCE编辑器
         if (typeof tinymce !== 'undefined' && tinymce.activeEditor) {
@@ -211,7 +212,8 @@
                                 var file = cd.items[i].getAsFile();
                                 console.log('[LskyPro] TinyMCE检测到图片:', file.name);
                                 uploadImageToLsky(file, function(url) {
-                                    editor.insertContent('<img src="' + url + '" alt="" />');
+                                    var safeUrl = encodeURI(url);
+                                    editor.insertContent('<img src="' + safeUrl + '" alt="" />');
                                 });
                                 return;
                             }
@@ -233,7 +235,8 @@
                 detectImagePaste(e.clipboardData || window.clipboardData, function(file) {
                     e.preventDefault();
                     uploadImageToLsky(file, function(url) {
-                        var imgHtml = '<img src="' + url + '" alt="" />';
+                        var safeUrl = encodeURI(url);
+                        var imgHtml = '<img src="' + safeUrl + '" alt="" />';
                         var start = textarea.selectionStart;
                         textarea.value = textarea.value.substring(0, start) + imgHtml + textarea.value.substring(start);
                         textarea.selectionStart = textarea.selectionEnd = start + imgHtml.length;

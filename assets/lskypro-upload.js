@@ -30,6 +30,12 @@
                     }
                 },
                 onSuccess: function(url, name) {
+                    // 安全转义URL和名称，防止XSS
+                    var safeUrl = encodeURI(url);
+                    var safeName = name.replace(/[&<>"']/g, function(c) {
+                        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+                    });
+                    
                     // 插入图片到编辑器
                     if (typeof wp !== 'undefined') {
                         // Gutenberg编辑器的更可靠方法
@@ -40,7 +46,7 @@
                             
                             // 创建图片HTML
                             const imageHTML = `<!-- wp:image -->
-<figure class="wp-block-image"><img src="${url}" alt="${name}"/></figure>
+<figure class="wp-block-image"><img src="${safeUrl}" alt="${safeName}"/></figure>
 <!-- /wp:image -->`;
                             
                             // 插入到当前内容
@@ -50,7 +56,7 @@
                             );
                         } else if (wp.media && wp.media.editor) {
                             // 经典编辑器
-                            wp.media.editor.insert(`<img src="${url}" alt="${name}" />`);
+                            wp.media.editor.insert(`<img src="${safeUrl}" alt="${safeName}" />`);
                         }
                     }
                     
@@ -98,50 +104,58 @@
                     uploadBox.innerHTML = '正在上传中...';
                 },
                 onSuccess: function(url, name) {
+                    // 安全转义URL和名称，防止XSS
+                    var safeUrl = encodeURI(url);
+                    var safeName = name.replace(/[&<>"']/g, function(c) {
+                        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+                    });
+                    
                     // 确保结果区域存在
                     if (resultDiv) {
-                        // 1. 构建包含所有格式的HTML字符串
-                        const htmlString = `
-                            <div class="lskypro-result-label">图片URL：</div>
-                            <input type="text" class="lskypro-result-input" value="${url}" readonly>
-                            
-                            <div class="lskypro-result-label">HTML代码：</div>
-                            <input type="text" class="lskypro-result-input" value='<img src="${url}" alt="${name}" />' readonly>
-                            
-                            <div class="lskypro-result-label">Markdown：</div>
-                            <input type="text" class="lskypro-result-input" value="![${name}](${url})" readonly>
-                            
-                            <div class="lskypro-result-label">BBCode：</div>
-                            <input type="text" class="lskypro-result-input" value="[img]${url}[/img]" readonly>
-                        `;
+                        // 清空结果区域
+                        resultDiv.innerHTML = '';
                         
-                        // 2. 一次性设置结果区域的HTML
-                        resultDiv.innerHTML = htmlString;
+                        // 安全创建各格式结果（用DOM API代替innerHTML拼接，防止XSS）
+                        var formats = [
+                            { label: '图片URL：', value: url },
+                            { label: 'HTML代码：', value: '<img src="' + url + '" alt="' + name + '" />' },
+                            { label: 'Markdown：', value: '![' + name + '](' + url + ')' },
+                            { label: 'BBCode：', value: '[img]' + url + '[/img]' }
+                        ];
                         
-                        // 3. 为所有新创建的输入框添加点击复制功能
-                        resultDiv.querySelectorAll('.lskypro-result-input').forEach(input => {
+                        formats.forEach(function(fmt) {
+                            // 标签
+                            var labelDiv = document.createElement('div');
+                            labelDiv.className = 'lskypro-result-label';
+                            labelDiv.textContent = fmt.label;
+                            resultDiv.appendChild(labelDiv);
+                            
+                            // 输入框
+                            var input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'lskypro-result-input';
+                            input.value = fmt.value;
+                            input.readOnly = true;
+                            resultDiv.appendChild(input);
+                            
+                            // 点击复制
                             input.addEventListener('click', function() {
                                 this.select();
                                 
-                                // 使用现代的Clipboard API并提供回退
                                 if (navigator.clipboard && navigator.clipboard.writeText) {
-                                    navigator.clipboard.writeText(this.value).then(() => {
+                                    navigator.clipboard.writeText(this.value).then(function() {
                                         showNotification('已复制到剪贴板');
-                                    }).catch(err => {
-                                        console.error('复制失败:', err);
+                                    }).catch(function() {
                                         showNotification('复制失败');
                                     });
                                 } else {
-                                    // 对于旧浏览器，回退到 document.execCommand
                                     try {
-                                        const successful = document.execCommand('copy');
-                                        if (successful) {
+                                        if (document.execCommand('copy')) {
                                             showNotification('已复制到剪贴板');
                                         } else {
                                             showNotification('复制失败');
                                         }
                                     } catch (err) {
-                                        console.error('复制失败:', err);
                                         showNotification('复制失败');
                                     }
                                 }

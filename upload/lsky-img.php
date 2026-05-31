@@ -234,13 +234,13 @@ function lskypro_ajax_check_settings() {
             'max_size' => get_option('lskypro_max_size', 10)
         ));
     } catch (Exception $e) {
-        // 记录错误
+        // 记录详细错误到日志
         if (function_exists('lskypro_log_error')) {
             lskypro_log_error('AJAX处理时出错: ' . $e->getMessage());
         }
         
         wp_send_json_error(array(
-            'message' => '处理请求时出错',
+            'message' => '处理请求时出错，请稍后重试',
             'code' => 'server_error'
         ));
     }
@@ -266,14 +266,14 @@ function lskypro_test_connection() {
             return;
         }
         
-        // 优先从POST获取配置，其次从数据库获取
-        $domain = isset($_POST['domain']) ? sanitize_url($_POST['domain']) : get_option('domain');
-        $tokens = isset($_POST['tokens']) ? sanitize_text_field($_POST['tokens']) : get_option('tokens');
-        $api_version = isset($_POST['api_version']) ? sanitize_text_field($_POST['api_version']) : get_option('lskypro_api_version', 'v1');
+        // 只从数据库读取配置（防止SSRF攻击）
+        $domain = get_option('domain');
+        $tokens = get_option('tokens');
+        $api_version = get_option('lskypro_api_version', 'v1');
         
         if (empty($domain) || empty($tokens)) {
             wp_send_json_error(array(
-                'message' => '请先配置API网址和Tokens',
+                'message' => '请先保存API网址和Tokens设置',
                 'code' => 'missing_config'
             ));
             return;
@@ -292,8 +292,9 @@ function lskypro_test_connection() {
         ));
         
         if (is_wp_error($response)) {
+            lskypro_log_error('连接失败: ' . $response->get_error_message());
             wp_send_json_error(array(
-                'message' => '连接失败: ' . $response->get_error_message(),
+                'message' => '连接失败，请检查API网址是否正确',
                 'code' => 'connection_error'
             ));
             return;
@@ -330,13 +331,13 @@ function lskypro_test_connection() {
             }
         }
     } catch (Exception $e) {
-        // 记录错误
+        // 记录详细错误到日志
         if (function_exists('lskypro_log_error')) {
             lskypro_log_error('测试连接时出错: ' . $e->getMessage());
         }
         
         wp_send_json_error(array(
-            'message' => '处理请求时出错: ' . $e->getMessage(),
+            'message' => '处理请求时出错，请稍后重试',
             'code' => 'server_error'
         ));
     }
@@ -362,15 +363,15 @@ function lskypro_get_strategies() {
             return;
         }
         
-        // 优先从POST获取配置，其次从数据库获取
-        $domain = isset($_POST['domain']) ? sanitize_url($_POST['domain']) : get_option('domain');
-        $tokens = isset($_POST['tokens']) ? sanitize_text_field($_POST['tokens']) : get_option('tokens');
+        // 只从数据库读取配置（防止SSRF攻击）
+        $domain = get_option('domain');
+        $tokens = get_option('tokens');
         // 策略列表API始终使用V1版本
         $api_version = 'v1';
         
         if (empty($domain) || empty($tokens)) {
             wp_send_json_error(array(
-                'message' => '请先配置API网址和Tokens',
+                'message' => '请先保存API网址和Tokens设置',
                 'code' => 'missing_config'
             ));
             return;
@@ -387,8 +388,9 @@ function lskypro_get_strategies() {
         ));
         
         if (is_wp_error($response)) {
+            lskypro_log_error('获取策略列表失败: ' . $response->get_error_message());
             wp_send_json_error(array(
-                'message' => '获取策略列表失败: ' . $response->get_error_message(),
+                'message' => '获取策略列表失败，请检查网络连接',
                 'code' => 'connection_error'
             ));
             return;
@@ -425,7 +427,7 @@ function lskypro_get_strategies() {
         }
         
         wp_send_json_error(array(
-            'message' => '处理请求时出错: ' . $e->getMessage(),
+            'message' => '处理请求时出错，请稍后重试',
             'code' => 'server_error'
         ));
     }
@@ -451,15 +453,15 @@ function lskypro_get_albums() {
             return;
         }
         
-        // 优先从POST获取配置，其次从数据库获取
-        $domain = isset($_POST['domain']) ? sanitize_url($_POST['domain']) : get_option('domain');
-        $tokens = isset($_POST['tokens']) ? sanitize_text_field($_POST['tokens']) : get_option('tokens');
+        // 只从数据库读取配置（防止SSRF攻击）
+        $domain = get_option('domain');
+        $tokens = get_option('tokens');
         // 相册列表API始终使用V1版本
         $api_version = 'v1';
         
         if (empty($domain) || empty($tokens)) {
             wp_send_json_error(array(
-                'message' => '请先配置API网址和Tokens',
+                'message' => '请先保存API网址和Tokens设置',
                 'code' => 'missing_config'
             ));
             return;
@@ -476,8 +478,9 @@ function lskypro_get_albums() {
         ));
         
         if (is_wp_error($response)) {
+            lskypro_log_error('获取相册列表失败: ' . $response->get_error_message());
             wp_send_json_error(array(
-                'message' => '获取相册列表失败: ' . $response->get_error_message(),
+                'message' => '获取相册列表失败，请检查网络连接',
                 'code' => 'connection_error'
             ));
             return;
@@ -514,7 +517,7 @@ function lskypro_get_albums() {
         }
         
         wp_send_json_error(array(
-            'message' => '处理请求时出错: ' . $e->getMessage(),
+            'message' => '处理请求时出错，请稍后重试',
             'code' => 'server_error'
         ));
     }
